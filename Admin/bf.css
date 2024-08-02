@@ -121,6 +121,12 @@ h1, h2 {
     margin-bottom: 1.5rem;
 }
 
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 form {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -165,7 +171,6 @@ button:hover {
     transform: translateY(-2px);
 }
 
-
 table {
     width: 100%;
     border-collapse: separate;
@@ -204,14 +209,14 @@ tr:nth-child(even) {
     color: var(--secondary-color);
 }
 
-.print-button {
-    margin-top: 1.5rem;
-    text-align: center;
+.print-button-container {
+    text-align: right;
+    margin-top: -40px;
+    margin-bottom: 20px;
 }
 
-.print-button button {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
+.print-button {
+    display: inline-block;
 }
 
 /* ซ่อนส่วนที่ไม่ต้องการแสดงในการพิมพ์ */
@@ -220,28 +225,18 @@ tr:nth-child(even) {
         visibility: hidden; /* ซ่อนทุกอย่าง */
     }
 
-    .printable {
+    .printable, .printable * {
         visibility: visible; /* แสดงเฉพาะส่วนที่ต้องการพิมพ์ */
     }
 
-    .printable, .printable * {
-        visibility: visible; /* ทำให้ทุกอย่างในส่วนที่ต้องการพิมพ์มองเห็นได้ */
-    }
-
     .printable {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 0;
+        page-break-after: always; /* แยกหน้าใหม่หลังจากพิมพ์แต่ละใบเสร็จ */
     }
 
     .navbar, .sidebar, .print-button, form {
         display: none; /* ซ่อน Navbar, Sidebar, ปุ่มพิมพ์, และฟอร์ม */
     }
 }
-
 
 @media (max-width: 600px) {
     .container {
@@ -349,6 +344,7 @@ tr:nth-child(even) {
     text-align: center;
     display: inline-block;
 }
+
 /* เพิ่ม CSS นี้สำหรับการจัดตำแหน่งกลางของข้อความใน .payment-info */
 .payment-info {
     display: flex;
@@ -358,4 +354,3 @@ tr:nth-child(even) {
     text-align: center; /* จัดข้อความให้เป็นกลาง */
     box-sizing: border-box; /* รวม padding และ border ในการคำนวณความกว้าง */
 }
-
