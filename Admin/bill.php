@@ -1,12 +1,12 @@
 <?php
-require_once 'config.php'; // Include the database configuration file
+require_once 'config.php'; // รวมไฟล์การตั้งค่าฐานข้อมูล
 
 $selected_room = $selected_month = $selected_year = "";
 $rooms = [];
 $months = [];
 $years = [];
 
-// Function to convert month number to Thai month name
+// ฟังก์ชันแปลงหมายเลขเดือนเป็นชื่อเดือนภาษาไทย
 function getThaiMonth($month) {
     $thaiMonths = [
         1 => 'มกราคม', 2 => 'กุมภาพันธ์', 3 => 'มีนาคม', 4 => 'เมษายน',
@@ -16,12 +16,12 @@ function getThaiMonth($month) {
     return isset($thaiMonths[$month]) ? $thaiMonths[$month] : '';
 }
 
-// Function to convert Gregorian year to Buddhist year
+// ฟังก์ชันแปลงปีคริสต์ศักราชเป็นปีพุทธศักราช
 function getBuddhistYear($year) {
     return $year + 543;
 }
 
-// Fetch distinct rooms, months, and years from the database for dropdown
+// ดึงข้อมูลห้อง เดือน และปีจากฐานข้อมูลสำหรับ dropdown
 $roomQuery = "SELECT DISTINCT Room_number FROM users WHERE Room_number IN ('201', '202', '302', '303', '304', '305', '306', '203', '204', '205', '206', '301', 'S1', 'S2') ORDER BY Room_number";
 $monthQuery = "SELECT DISTINCT month FROM bill ORDER BY month";
 $yearQuery = "SELECT DISTINCT year FROM bill ORDER BY year";
@@ -31,7 +31,7 @@ if ($roomResult = $conn->query($roomQuery)) {
         $rooms[] = $row['Room_number'];
     }
 }
-$rooms[] = "ทั้งหมด"; // Add the option for "ทั้งหมด"
+$rooms[] = "ทั้งหมด"; // เพิ่มตัวเลือก "ทั้งหมด"
 if ($monthResult = $conn->query($monthQuery)) {
     while ($row = $monthResult->fetch_assoc()) {
         $months[] = $row['month'];
@@ -43,7 +43,7 @@ if ($yearResult = $conn->query($yearQuery)) {
     }
 }
 
-// Handle the form submission
+// จัดการการส่งฟอร์ม
 $bill_details = null;
 $records = [];
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['view_bill'])) {
@@ -52,11 +52,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['view_bill'])) {
     $selected_year = $_POST['selected_year'];
 
     if ($selected_room == "ทั้งหมด") {
-        // Fetch the latest bill for each room in the selected month and year
+        // ดึงบิลล่าสุดสำหรับแต่ละห้องในเดือนและปีที่เลือก
         $sql = "SELECT b.*, u.Room_number, u.First_name, u.Last_name, 
                        CASE 
                            WHEN u.Room_number IN ('201', '202', '302', '303', '304', '305', '306', '203', '204', '205', '206', '301') THEN u.water_was 
-                           WHEN u.Room_number = 'S1' THEN b.water_cost 
+                           WHEN u.Room_number = 'S1' THEN b.difference_water 
                            ELSE b.water_cost 
                        END as water_cost_display
                 FROM bill b
@@ -72,12 +72,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['view_bill'])) {
                 ORDER BY u.Room_number";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("iiii", $selected_month, $selected_year, $selected_month, $selected_year);
+    } elseif ($selected_room == "S1") {
+        // ดึงบิลล่าสุดสำหรับห้อง S1 และน้ำจาก difference_water
+        $sql = "SELECT b.*, u.Room_number, u.First_name, u.Last_name, 
+                       b.difference_water as water_cost_display
+                FROM bill b
+                LEFT JOIN users u ON b.user_id = u.id
+                WHERE u.Room_number = ? AND b.month = ? AND b.year = ?
+                ORDER BY b.id DESC LIMIT 1";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sii", $selected_room, $selected_month, $selected_year);
     } else {
-        // Fetch the latest bill for the selected room
+        // ดึงบิลล่าสุดสำหรับห้องที่เลือก
         $sql = "SELECT b.*, u.Room_number, u.First_name, u.Last_name, 
                        CASE 
-                           WHEN u.Room_number IN ('201', '202', '302', '303', '304', '305', '306', '203', '204', '205', '206', '301') THEN u.water_was 
-                           WHEN u.Room_number = 'S1' THEN b.water_cost 
+                           WHEN u.Room_number = 'S2' THEN 0 
                            ELSE b.water_cost 
                        END as water_cost_display
                 FROM bill b
@@ -100,10 +109,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['view_bill'])) {
 
 $conn->close();
 
-// Function to get current Thai month and Buddhist year
+// ฟังก์ชันแปลงเดือนและปีปัจจุบันเป็นภาษาไทย
 function getCurrentThaiMonthYear() {
-    $currentMonth = date('n'); // Get current month as a number
-    $currentYear = date('Y') + 543; // Get current year and convert to Buddhist year
+    $currentMonth = date('n'); // ดึงเดือนปัจจุบันเป็นตัวเลข
+    $currentYear = date('Y') + 543; // ดึงปีปัจจุบันและแปลงเป็นพุทธศักราช
     $thaiMonths = [
         1 => 'มกราคม', 2 => 'กุมภาพันธ์', 3 => 'มีนาคม', 4 => 'เมษายน', 5 => 'พฤษภาคม', 6 => 'มิถุนายน',
         7 => 'กรกฎาคม', 8 => 'สิงหาคม', 9 => 'กันยายน', 10 => 'ตุลาคม', 11 => 'พฤศจิกายน', 12 => 'ธันวาคม'
@@ -123,7 +132,7 @@ list($currentThaiMonth, $currentBuddhistYear) = getCurrentThaiMonthYear();
     <title>ใบเสร็จ</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="bill.css">
+    <link rel="stylesheet" href="bf.css"> <!-- เชื่อมโยงกับไฟล์ CSS -->
 </head>
 <body>
     <nav class="navbar">
@@ -175,43 +184,99 @@ list($currentThaiMonth, $currentBuddhistYear) = getCurrentThaiMonthYear();
                 <button type="submit" name="view_bill">ดูใบเสร็จรับเงิน</button>
             </form>
             <?php if ($selected_room == "ทั้งหมด" && !empty($records)): ?>
-                <h2>ผลลัพธ์:</h2>
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>หมายเลขห้อง</th>
-                            <th>เดือน</th>
-                            <th>ปี</th>
-                            <th>ค่าไฟฟ้า</th>
-                            <th>ค่าน้ำ</th>
-                            <th>ค่าห้อง</th>
-                            <th>ค่าใช้จ่ายทั้งหมด</th>
-                            <th>พิมพ์ใบเสร็จ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($records as $record): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($record['Room_number']); ?></td>
-                                <td><?php echo getThaiMonth(htmlspecialchars($record['month'])); ?></td>
-                                <td><?php echo getBuddhistYear(htmlspecialchars($record['year'])); ?></td>
-                                <td><?php echo htmlspecialchars($record['electric_cost']); ?> บาท</td>
-                                <td><?php echo htmlspecialchars($record['water_cost_display']); ?> บาท</td>
-                                <td><?php echo htmlspecialchars($record['room_cost']); ?> บาท</td>
-                                <td><?php echo htmlspecialchars($record['total_cost']); ?> บาท</td>
-                                <td>
-                                    <button class="btn-action btn-warning" onclick="printRoomBill('<?php echo $record['Room_number']; ?>', '<?php echo $record['month']; ?>', '<?php echo $record['year']; ?>')">พิมพ์ใบเสร็จ</button>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-                <div class="print-button">
-                    <button onclick="printAllBills()">พิมพ์ใบเสร็จทั้งหมด</button>
+                <h2>ผลลัพธ์: <button onclick="printAllBills()">พิมพ์ใบเสร็จทั้งหมด</button></h2>
+                <div id="all-bills">
+                    <?php foreach ($records as $index => $record): ?>
+                        <div class="printable bill">
+                            <h2>ใบเสร็จรับเงิน</h2>
+                            <p>หมายเลขห้อง: <?php echo htmlspecialchars($record['Room_number']); ?></p>
+                            <p>ชื่อ: <?php echo htmlspecialchars($record['First_name']); ?> <?php echo htmlspecialchars($record['Last_name']); ?></p>
+                            <p>เดือน/ปี: <?php echo getThaiMonth($selected_month); ?> <?php echo getBuddhistYear($selected_year); ?></p>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>รายการ</th>
+                                        <th>จำนวนหน่วย</th>
+                                        <th>ราคาต่อหน่วย</th>
+                                        <th>รวม(บาท)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>ค่าไฟฟ้า</td>
+                                        <td><?php echo htmlspecialchars($record['difference_electric']); ?></td>
+                                        <td>7</td>
+                                        <td><?php echo htmlspecialchars($record['difference_electric'] * 7); ?></td>
+                                    </tr>
+                                    <tr>
+                                        <td>ค่าน้ำ</td>
+                                        <td>
+                                            <?php 
+                                                if ($record['Room_number'] == 'S1') {
+                                                    echo htmlspecialchars($record['difference_water']); 
+                                                } elseif ($record['Room_number'] == 'S2') {
+                                                    echo '0';
+                                                } elseif (in_array($record['Room_number'], ['201', '202', '302', '303', '304', '305', '306'])) {
+                                                    echo '1';
+                                                } elseif (in_array($record['Room_number'], ['203', '204', '205', '206', '301'])) {
+                                                    echo '1';
+                                                }
+                                            ?>
+                                        </td>
+                                        <td>
+                                            <?php 
+                                                if ($record['Room_number'] == 'S1') {
+                                                    echo '22';
+                                                } elseif ($record['Room_number'] == 'S2') {
+                                                    echo '0';
+                                                } elseif (in_array($record['Room_number'], ['201', '202', '302', '303', '304', '305', '306'])) {
+                                                    echo '150';
+                                                } elseif (in_array($record['Room_number'], ['203', '204', '205', '206', '301'])) {
+                                                    echo '200';
+                                                }
+                                            ?>
+                                        </td>
+                                        <td>
+                                            <?php 
+                                                if ($record['Room_number'] == 'S1') {
+                                                    echo htmlspecialchars($record['difference_water']) * 22; 
+                                                } elseif ($record['Room_number'] == 'S2') {
+                                                    echo '0';
+                                                } elseif (in_array($record['Room_number'], ['201', '202', '302', '303', '304', '305', '306'])) {
+                                                    echo '150';
+                                                } elseif (in_array($record['Room_number'], ['203', '204', '205', '206', '301'])) {
+                                                    echo '200';
+                                                }
+                                            ?>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>ค่าห้อง</td>
+                                        <td>1</td>
+                                        <td><?php echo htmlspecialchars($record['room_cost']); ?></td>
+                                        <td><?php echo htmlspecialchars($record['room_cost']); ?></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="total">
+                                <strong>ยอดรวม: <?php echo htmlspecialchars($record['total_cost']); ?> บาท</strong>
+                            </div>
+                            <div class="payment-info">
+                                <p><strong>โอนเงินเข้าบัญชี ธ.กรุงไทย (ชื่อบัญชี คุณกรรณิกา กุลจินต์)</strong></p>
+                                <p>เลขบัญชี 915-1-16412-4 เท่านั้น ! (ชำระทุกวันที่ 1-5 นะคะ)</p>
+                            </div>
+                        </div>
+                        <?php if ($index < count($records) - 1): ?>
+                            <div class="page-break"></div>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
                 </div>
-                <?php elseif (!empty($bill_details)): ?>
+            <?php elseif (!empty($bill_details)): ?>
                 <div class="printable">
                     <h2>ใบเสร็จรับเงิน</h2>
+                    <div class="print-button-container">
+                        <button onclick="window.print()" class="print-button">พิมพ์ใบเสร็จ</button>
+                    </div>
                     <p>หมายเลขห้อง: <?php echo htmlspecialchars($bill_details['Room_number']); ?></p>
                     <p>ชื่อ: <?php echo htmlspecialchars($bill_details['First_name']); ?> <?php echo htmlspecialchars($bill_details['Last_name']); ?></p>
                     <p>เดือน/ปี: <?php echo getThaiMonth($selected_month); ?> <?php echo getBuddhistYear($selected_year); ?></p>
@@ -227,20 +292,56 @@ list($currentThaiMonth, $currentBuddhistYear) = getCurrentThaiMonthYear();
                         <tbody>
                             <tr>
                                 <td>ค่าไฟฟ้า</td>
-                                <td><?php echo htmlspecialchars($bill_details['electric_cost']); ?></td>
-                                <td></td>
-                                <td><?php echo htmlspecialchars($bill_details['electric_cost']); ?></td>
+                                <td><?php echo htmlspecialchars($bill_details['difference_electric']); ?></td>
+                                <td>7</td>
+                                <td><?php echo htmlspecialchars($bill_details['difference_electric'] * 7); ?></td>
                             </tr>
                             <tr>
                                 <td>ค่าน้ำ</td>
-                                <td><?php echo htmlspecialchars($bill_details['water_cost_display']); ?></td>
-                                <td></td>
-                                <td><?php echo htmlspecialchars($bill_details['water_cost_display']); ?></td>
+                                <td>
+                                    <?php 
+                                        if ($bill_details['Room_number'] == 'S1') {
+                                            echo htmlspecialchars($bill_details['difference_water']); 
+                                        } elseif ($bill_details['Room_number'] == 'S2') {
+                                            echo '0';
+                                        } elseif (in_array($bill_details['Room_number'], ['201', '202', '302', '303', '304', '305', '306'])) {
+                                            echo '1';
+                                        } elseif (in_array($bill_details['Room_number'], ['203', '204', '205', '206', '301'])) {
+                                            echo '1';
+                                        }
+                                    ?>
+                                </td>
+                                <td>
+                                    <?php 
+                                        if ($bill_details['Room_number'] == 'S1') {
+                                            echo '22';
+                                        } elseif ($bill_details['Room_number'] == 'S2') {
+                                            echo '0';
+                                        } elseif (in_array($bill_details['Room_number'], ['201', '202', '302', '303', '304', '305', '306'])) {
+                                            echo '150';
+                                        } elseif (in_array($bill_details['Room_number'], ['203', '204', '205', '206', '301'])) {
+                                            echo '200';
+                                        }
+                                    ?>
+                                </td>
+                                <td>
+                                    <?php 
+                                        if ($bill_details['Room_number'] == 'S1') {
+                                            echo htmlspecialchars($bill_details['difference_water']) * 22; 
+                                        } elseif ($bill_details['Room_number'] == 'S2') {
+                                            echo '0';
+                                        } elseif (in_array($bill_details['Room_number'], ['201', '202', '302', '303', '304', '305', '306'])) {
+                                            echo '150';
+                                        } elseif (in_array($bill_details['Room_number'], ['203', '204', '205', '206', '301'])) {
+                                            echo '200';
+                                        }
+                                    ?>
+                                </td>
                             </tr>
                             <tr>
                                 <td>ค่าห้อง</td>
+                                <td>1</td>
                                 <td><?php echo htmlspecialchars($bill_details['room_cost']); ?></td>
-                                <td></td>
                                 <td><?php echo htmlspecialchars($bill_details['room_cost']); ?></td>
                             </tr>
                         </tbody>
@@ -253,23 +354,17 @@ list($currentThaiMonth, $currentBuddhistYear) = getCurrentThaiMonthYear();
                         <p>เลขบัญชี 915-1-16412-4 เท่านั้น ! (ชำระทุกวันที่ 1-5 นะคะ)</p>
                     </div>
                 </div>
-                <div class="print-button">
-                    <button onclick="window.print()">พิมพ์ใบเสร็จ</button>
-                </div>
             <?php endif; ?>
         </main>
     </div>
     <script>
-        function printRoomBill(roomNumber, month, year) {
-            var url = 'print_receipt.php?room=' + roomNumber + '&month=' + month + '&year=' + year;
-            window.open(url, '_blank');
-        }
-
         function printAllBills() {
-            var url = 'print_receipt.php?room=ทั้งหมด&month=<?php echo $selected_month; ?>&year=<?php echo $selected_year; ?>';
-            window.open(url, '_blank');
+            var originalContents = document.body.innerHTML;
+            var printContents = document.getElementById('all-bills').innerHTML;
+            document.body.innerHTML = printContents;
+            window.print();
+            document.body.innerHTML = originalContents;
         }
     </script>
-
 </body>
 </html>
